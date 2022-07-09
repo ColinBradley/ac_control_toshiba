@@ -1,0 +1,12 @@
+{
+    "cSpell.words": [
+        "actix"
+    ],
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+        "*.tsx": "${capture}.js, ${capture}.js.map, ${capture}.js.map,",
+        "*.ts": "${capture}.js",
+        "tsconfig.json": "tsconfig.*.json",
+        "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml"
+    }
+}

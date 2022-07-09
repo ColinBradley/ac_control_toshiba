@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub async fn get_mappings(
     client: &reqwest::Client,
@@ -44,36 +44,36 @@ pub struct GroupMap {
     pub ac_list: Vec<AirConditionerMapping>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct AirConditionerMapping {
     #[serde(rename = "Id")]
-    pub id: String, //"2ba90997-30f8-4e18-a60f-114438ada0c5",
+    pub id: String,
     #[serde(rename = "DeviceUniqueId")]
-    pub device_unique_id: String, //"fde8e19f-4191-44b4-990c-bb91f5124be1",
+    pub device_unique_id: String,
     #[serde(rename = "Name")]
-    pub name: String, //"Living room",
+    pub name: String,
     #[serde(rename = "ACModelId")]
-    pub acmodel_id: String, //"3",
+    pub acmodel_id: String,
     #[serde(rename = "Description")]
-    pub description: String, //"AC_fde8e19f-4191-44b4-990c-bb91f5124be1",
+    pub description: String,
     #[serde(rename = "CreatedDate")]
-    pub created_date: String, //"6/14/2022 3:13:00 PM",
+    pub created_date: String,
     #[serde(rename = "ACStateData")]
-    pub ac_state_data: String, //"31411841316400101710fe0b00001002000000",
+    pub ac_state_data: String,
     #[serde(rename = "FirmwareUpgradeStatus")]
-    pub firmware_upgrade_status: String, //"",
+    pub firmware_upgrade_status: String,
     #[serde(rename = "URL")]
-    pub url: String, //"",
+    pub url: String,
     #[serde(rename = "File")]
-    pub file: String, //"",
+    pub file: String,
     #[serde(rename = "MeritFeature")]
-    pub merit_feature: String, //"2c02",
+    pub merit_feature: String,
     #[serde(rename = "AdapterType")]
-    pub adapter_type: String, //"0",
+    pub adapter_type: String,
     #[serde(rename = "FirmwareVersion")]
-    pub firmware_version: String, //"2.0.00",
+    pub firmware_version: String,
     #[serde(rename = "FirmwareCode")]
-    pub firmware_code: String, //"0001",
+    pub firmware_code: String,
 }
 
 pub fn parse_state_data(value: &str) -> Result<StateData, std::num::ParseIntError> {
@@ -116,7 +116,7 @@ pub fn parse_state_data(value: &str) -> Result<StateData, std::num::ParseIntErro
     })
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct StateData {
     pub power_status: PowerState,
     pub mode: AirConditionerMode,
@@ -132,14 +132,14 @@ pub struct StateData {
     pub self_cleaning: u8,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum PowerState {
     On,
     Off,
     Unknown,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum AirConditionerMode {
     Auto,
     Cool,
@@ -149,7 +149,7 @@ pub enum AirConditionerMode {
     Unknown,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum FanMode {
     Auto,
     Quiet,

@@ -1,68 +1,91 @@
 mod config;
 mod toshiba_api;
 
+use actix_web::{web, App, HttpRequest, HttpServer, Responder};
 use anyhow::Result;
 use config::get_config;
-use toshiba_api::login::LoginMessage;
+use serde::Serialize;
+use tokio::sync::Mutex;
+use toshiba_api::{login::LoginMessage, mapping::StateData};
 
-use crate::toshiba_api::mapping::{parse_state_data, AirConditionerMode, PowerState};
+use crate::toshiba_api::mapping::parse_state_data;
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let app_config = get_config()?;
-    let http_client = reqwest::Client::new();
-    let login_message = toshiba_api::login::login(&http_client, &app_config).await?;
+pub struct ServerState {
+    config: config::Config,
+    http_client: reqwest::Client,
+    login_details: Mutex<Option<toshiba_api::login::LoginSuccessResponse>>,
+}
 
-    let login_details = match login_message {
-        LoginMessage::InvalidUserNameOrPassword { message, .. } => {
-            println!("Error: Invalid login. {}", message);
-            std::process::exit(1);
-        }
-        LoginMessage::Success { res_obj, .. } => res_obj,
-    };
+#[derive(Serialize)]
+struct AcUnitResult {
+    name: String,
+    state: StateData,
+}
 
-    let mapping_result = toshiba_api::mapping::get_mappings(
-        &http_client,
-        &login_details.access_token,
-        &login_details.consumer_id,
-    )
-    .await?;
+async fn get_units(req: HttpRequest) -> impl Responder {
+    let server_state = req.app_data::<web::Data<ServerState>>().unwrap();
 
-    for group in mapping_result.iter() {
-        for unit in group.ac_list.iter() {
-            println!("{}", unit.name);
-            let state_data = parse_state_data(&unit.ac_state_data).unwrap();
-            println!(
-                "\tPower: {}",
-                match state_data.power_status {
-                    PowerState::On => "On",
-                    PowerState::Off => "Off",
-                    _ => "Unknown",
-                }
-            );
-            println!(
-                "\tMode: {}",
-                match state_data.mode {
-                    AirConditionerMode::Auto => "Auto",
-                    AirConditionerMode::Cool => "Cool",
-                    AirConditionerMode::Dry => "Dry",
-                    AirConditionerMode::Fan => "Fan",
-                    AirConditionerMode::Heat => "Heat",
-                    _ => "Unknown",
-                }
-            );
-            println!("\tCurrent Temp: {}", state_data.indoor_temp);
-            println!("\tTarget Temp: {}", state_data.target_temperature);
-        }
+    let login_message = toshiba_api::login::login(&server_state.http_client, &server_state.config)
+        .await
+        .unwrap();
+
+    let mut login_guard = server_state.login_details.lock().await;
+
+    if login_guard.is_none() {
+        let response = match login_message {
+            LoginMessage::InvalidUserNameOrPassword { message, .. } => {
+                println!("Error: Invalid login. {}", message);
+                std::process::exit(1);
+            }
+            LoginMessage::Success { res_obj, .. } => res_obj,
+        };
+
+        *login_guard = Some(response);
     }
 
-    // let first_ac_mapping = mapping_result.get(0).unwrap().ac_list.get(0).unwrap();
+    let login = login_guard.as_ref().unwrap();
 
-    // let status_result =
-    //     toshiba_api::status::get_status(&client, &login_details.access_token, &first_ac_mapping.id)
-    //         .await?;
+    // Take clones of the login details that we need, so that we can drop the guard sooner (and not keep it active during get_mappings)
+    // .. Not really sure if that's necessary?
+    let access_token = login.access_token.clone();
+    let consumer_id = login.consumer_id.clone();
 
-    // println!("{status_result}");
+    let mut mapping_result =
+        toshiba_api::mapping::get_mappings(&server_state.http_client, &access_token, &consumer_id)
+            .await
+            .unwrap();
+
+    web::Json(
+        mapping_result
+            .remove(0)
+            .ac_list
+            .iter()
+            .map(|unit| AcUnitResult {
+                name: unit.name.clone(),
+                state: parse_state_data(&unit.ac_state_data).unwrap(),
+            })
+            .collect::<Vec<AcUnitResult>>(),
+    )
+}
+
+#[actix_web::main]
+async fn main() -> Result<()> {
+    println!("Starting server: http://localhost:8080/index.html");
+
+    HttpServer::new(move || {
+        App::new()
+            .wrap(actix_web::middleware::Compress::default())
+            .app_data(web::Data::new(ServerState {
+                config: get_config().unwrap(),
+                http_client: reqwest::Client::new(),
+                login_details: Mutex::from(None),
+            }))
+            .route("/api/units", web::get().to(get_units))
+            .service(actix_files::Files::new("/", "./www"))
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await?;
 
     Ok(())
 }

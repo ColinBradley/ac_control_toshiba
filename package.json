@@ -1,0 +1,21 @@
+{
+    "name": "ac_control_toshiba",
+    "version": "1.0.0",
+    "description": "Well, it just fetches the status at the moment and prints it.. but eventually!",
+    "main": "index.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/ColinBradley/ac_control_toshiba.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/ColinBradley/ac_control_toshiba/issues"
+    },
+    "homepage": "https://github.com/ColinBradley/ac_control_toshiba#readme",
+    "dependencies": {
+        "@types/react": "^18.0.15",
+        "@types/react-dom": "^18.0.6",
+        "typescript": "^4.7.4"
+    }
+}
